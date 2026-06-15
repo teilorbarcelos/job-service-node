@@ -311,17 +311,3 @@ docker compose up -d app
 O `Dockerfile` é multi-stage e roda o `bun` como runtime.
 
 ---
-
-## 📚 Roadmap
-
-Veja [`TODO.md`](./TODO.md) para o roadmap completo. Em resumo:
-
-- [x] Esqueleto com `BaseJob` + `Scheduler` + health check
-- [x] Acesso a PostgreSQL / Redis / RabbitMQ
-- [x] 100% cobertura de testes
-- [x] SonarQube + Husky + CI
-- [x] Generator de jobs (`make job name=Cleanup`)
-- [ ] Métricas Prometheus para jobs (execuções, duração, erros)
-- [ ] Distributed lock (Redis) para execuções multi-replica
-- [ ] Retry com backoff na `BaseJob`
-- [ ] CLI para rodar jobs manualmente (`bun run job:run <name>`)
