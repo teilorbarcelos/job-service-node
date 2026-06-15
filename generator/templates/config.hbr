@@ -1,0 +1,85 @@
+import { defineRouteConfig } from '../../shared/utils/RouteContract.js';
+import { Create{{modelName}}Schema, Update{{modelName}}Schema, {{modelName}}ResponseSchema } from './{{modelName}}.schema.js';
+import { createPaginatedResponseSchema } from '../../shared/utils/schema.util.js';
+
+const TAG = '{{modelName}}';
+const FEATURE = '{{modelLower}}';
+
+export const List{{modelName}}sConfig = defineRouteConfig({
+  feature: FEATURE,
+  action: 'view',
+  tag: TAG,
+  summary: 'List {{modelLower}}s',
+  response: { 200: createPaginatedResponseSchema({{modelName}}ResponseSchema) }
+});
+
+export const ListAll{{modelName}}sConfig = defineRouteConfig({
+  feature: FEATURE,
+  action: 'view',
+  tag: TAG,
+  summary: 'List ALL {{modelLower}}s (Paginated, including inactive)',
+  response: { 200: createPaginatedResponseSchema({{modelName}}ResponseSchema) }
+});
+
+export const Get{{modelName}}Config = defineRouteConfig({
+  feature: FEATURE,
+  action: 'view',
+  tag: TAG,
+  summary: 'Get {{modelLower}} by ID',
+  params: {
+    type: 'object',
+    properties: { id: { type: 'string' } }
+  },
+  response: { 200: {{modelName}}ResponseSchema }
+});
+
+export const Create{{modelName}}Config = defineRouteConfig({
+  feature: FEATURE,
+  action: 'create',
+  tag: TAG,
+  summary: 'Create {{modelLower}}',
+  body: Create{{modelName}}Schema,
+  response: { 201: {{modelName}}ResponseSchema }
+});
+
+export const Update{{modelName}}Config = defineRouteConfig({
+  feature: FEATURE,
+  action: 'create',
+  tag: TAG,
+  summary: 'Update {{modelLower}}',
+  params: {
+    type: 'object',
+    properties: { id: { type: 'string' } }
+  },
+  body: Update{{modelName}}Schema,
+  response: { 200: {{modelName}}ResponseSchema }
+});
+
+export const Delete{{modelName}}Config = defineRouteConfig({
+  feature: FEATURE,
+  action: 'delete',
+  tag: TAG,
+  summary: 'Delete {{modelLower}}',
+  params: {
+    type: 'object',
+    properties: { id: { type: 'string' } }
+  },
+  response: { 200: { type: 'object', properties: { success: { type: 'boolean' } } } }
+});
+
+export const Toggle{{modelName}}StatusConfig = defineRouteConfig({
+  feature: FEATURE,
+  action: 'activate',
+  tag: TAG,
+  summary: 'Toggle {{modelLower}} status',
+  params: {
+    type: 'object',
+    properties: { id: { type: 'string' } }
+  },
+  body: {
+    type: 'object',
+    properties: { active: { type: 'boolean' } },
+    required: ['active']
+  },
+  response: { 200: {{modelName}}ResponseSchema }
+});

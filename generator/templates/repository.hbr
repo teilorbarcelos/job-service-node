@@ -1,0 +1,15 @@
+import { {{modelName}}, Prisma } from '@prisma/client';
+import { BaseRepository } from '../../core/BaseRepository.js';
+import { db } from '../../infra/database/PrismaService.js';
+import { Create{{modelName}}DTO, Update{{modelName}}DTO } from './{{modelName}}.schema.js';
+
+export class {{modelName}}Repository extends BaseRepository<
+  {{modelName}},
+  Create{{modelName}}DTO,
+  Update{{modelName}}DTO,
+  Prisma.{{modelName}}Delegate
+> {
+  constructor() {
+    super(db.{{modelLower}} as unknown as Prisma.{{modelName}}Delegate, '{{modelName}}');
+  }
+}

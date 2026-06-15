@@ -1,0 +1,11 @@
+node_modules/
+.env
+dist/
+coverage/
+.DS_Store
+*.log
+.husky/_/
+.scannerwork/
+TODO.md
+.stryker-tmp
+mutation.html

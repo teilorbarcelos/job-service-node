@@ -1,0 +1,15 @@
+import { {{modelName}} } from '@prisma/client';
+import { BaseController } from '../../core/BaseController.js';
+import { {{modelName}}Service } from './{{modelName}}.service.js';
+import { Create{{modelName}}DTO, Update{{modelName}}DTO } from './{{modelName}}.schema.js';
+
+export class {{modelName}}Controller extends BaseController<
+  {{modelName}},
+  Create{{modelName}}DTO,
+  Update{{modelName}}DTO,
+  {{modelName}}Service
+> {
+  constructor(service: {{modelName}}Service) {
+    super(service);
+  }
+}

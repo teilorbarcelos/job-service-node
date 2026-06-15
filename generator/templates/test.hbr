@@ -1,0 +1,155 @@
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+import supertest from 'supertest';
+import { buildApp } from '@/app.js';
+import { db } from '@/infra/database/PrismaService.js';
+
+vi.mock('@/infra/database/PrismaService.js', () => ({
+  db: {
+    {{modelLower}}: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    }
+  },
+  auditDb: {
+    audit: { create: vi.fn().mockResolvedValue({}) },
+    errorLog: { create: vi.fn().mockResolvedValue({}) },
+  }
+}));
+
+describe('{{modelName}} Endpoints', () => {
+  let app: ReturnType<typeof buildApp>;
+  let token: string;
+  let noPermissionToken: string;
+
+  beforeAll(async () => {
+    app = buildApp();
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    token = app.jwt.sign({ 
+      id: 'admin-id', 
+      email: 'admin@test.com', 
+      roleId: 'administrator',
+      permissions: [
+        { feature: '{{modelLower}}', view: true, create: true, delete: true, activate: true }
+      ]
+    });
+    noPermissionToken = app.jwt.sign({ 
+      id: 'user-id', 
+      email: 'user@test.com', 
+      roleId: 'user',
+      permissions: []
+    });
+  });
+
+  it('should create a {{modelLower}}', async () => {
+    const mockData = { id: '1', {{#each createFields}}{{name}}: {{#if (eq tsType "string")}}'test-{{name}}'{{else if (eq tsType "number")}}100{{else if (eq tsType "boolean")}}true{{else}}'2024-01-01'{{/if}}, {{/each}} };
+    (db.{{modelLower}}.create as any).mockResolvedValue(mockData);
+
+    const response = await supertest(app.server)
+      .post('/v1/{{modelLower}}')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        {{#each createFields}}
+        {{name}}: {{#if (eq tsType "string")}}'test-{{name}}'{{else if (eq tsType "number")}}100{{else if (eq tsType "boolean")}}true{{else}}'2024-01-01'{{/if}},
+        {{/each}}
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.id).toBe('1');
+  });
+
+  it('should return 403 for unauthorized actions', async () => {
+    const response = await supertest(app.server)
+      .post('/v1/{{modelLower}}')
+      .set('Authorization', `Bearer ${noPermissionToken}`)
+      .send({ {{#each createFields}}{{name}}: 'test'{{#unless @last}}, {{/unless}}{{/each}} });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('should list {{modelLower}}s (paginated)', async () => {
+    (db.{{modelLower}}.findMany as any).mockResolvedValue([]);
+    (db.{{modelLower}}.count as any).mockResolvedValue(0);
+
+    const response = await supertest(app.server)
+      .get('/v1/{{modelLower}}')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toEqual([]);
+  });
+
+  it('should list all {{modelLower}}s', async () => {
+    (db.{{modelLower}}.findMany as any).mockResolvedValue([]);
+    (db.{{modelLower}}.count as any).mockResolvedValue(0);
+
+    const response = await supertest(app.server)
+      .get('/v1/{{modelLower}}/all')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toEqual([]);
+  });
+
+  it('should get {{modelLower}} by id', async () => {
+    const mockData = { id: '1' };
+    (db.{{modelLower}}.findUnique as any).mockResolvedValue(mockData);
+
+    const response = await supertest(app.server)
+      .get('/v1/{{modelLower}}/1')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.id).toBe('1');
+  });
+
+  it('should return 404 if {{modelLower}} not found', async () => {
+    (db.{{modelLower}}.findUnique as any).mockResolvedValue(null);
+
+    const response = await supertest(app.server)
+      .get('/v1/{{modelLower}}/999')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(404);
+  });
+
+  it('should update a {{modelLower}}', async () => {
+    (db.{{modelLower}}.findUnique as any).mockResolvedValue({ id: '1' });
+    (db.{{modelLower}}.update as any).mockResolvedValue({ id: '1' });
+
+    const response = await supertest(app.server)
+      .put('/v1/{{modelLower}}/1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        {{#each updateFields}}
+        {{name}}: {{#if (eq tsType "string")}}'updated-{{name}}'{{else if (eq tsType "number")}}200{{else if (eq tsType "boolean")}}false{{else}}'2024-02-02'{{/if}},
+        {{/each}}
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.id).toBe('1');
+  });
+
+  it('should toggle {{modelLower}} status', async () => {
+    (db.{{modelLower}}.findUnique as any).mockResolvedValue({ id: '1' });
+    (db.{{modelLower}}.update as any).mockResolvedValue({ id: '1', active: false });
+
+    const response = await supertest(app.server)
+      .patch('/v1/{{modelLower}}/1/status')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ active: false });
+
+    expect(response.status).toBe(200);
+    expect(response.body.active).toBe(false);
+  });
+});

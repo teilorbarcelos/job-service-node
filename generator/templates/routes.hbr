@@ -1,0 +1,50 @@
+import { FastifyInstance } from 'fastify';
+import { {{modelName}}Controller } from './{{modelName}}.controller.js';
+import { {{modelName}}Service } from './{{modelName}}.service.js';
+import { {{modelName}}Repository } from './{{modelName}}.repository.js';
+import { Create{{modelName}}DTO, Update{{modelName}}DTO } from './{{modelName}}.schema.js';
+import { PaginationParams } from '../../core/index.js';
+import { 
+  registerGetRoute, 
+  registerPostRoute, 
+  registerPutRoute, 
+  registerDeleteRoute, 
+  registerPatchRoute 
+} from '../../core/RouteFactory.js';
+import { 
+  Get{{modelName}}Config, 
+  List{{modelName}}sConfig, 
+  ListAll{{modelName}}sConfig, 
+  Create{{modelName}}Config, 
+  Update{{modelName}}Config, 
+  Delete{{modelName}}Config, 
+  Toggle{{modelName}}StatusConfig 
+} from './{{modelName}}.config.js';
+
+export async function {{modelLower}}Routes(fastify: FastifyInstance) {
+  const repository = new {{modelName}}Repository();
+  const service = new {{modelName}}Service(repository);
+  const controller = new {{modelName}}Controller(service);
+
+  registerGetRoute(fastify, '/{{modelLower}}/:id', Get{{modelName}}Config, controller.getById.bind(controller));
+  
+  registerGetRoute<unknown, PaginationParams & Record<string, unknown>>(
+    fastify, '/{{modelLower}}', List{{modelName}}sConfig, controller.listItems.bind(controller)
+  );
+  
+  registerGetRoute<unknown, PaginationParams & Record<string, unknown>>(
+    fastify, '/{{modelLower}}/all', ListAll{{modelName}}sConfig, controller.listAllItems.bind(controller)
+  );
+  
+  registerPostRoute<Create{{modelName}}DTO>(fastify, '/{{modelLower}}', Create{{modelName}}Config, controller.create.bind(controller));
+  
+  registerPutRoute<Update{{modelName}}DTO, { id: string }>(
+    fastify, '/{{modelLower}}/:id', Update{{modelName}}Config, controller.update.bind(controller)
+  );
+  
+  registerDeleteRoute<{ id: string }>(fastify, '/{{modelLower}}/:id', Delete{{modelName}}Config, controller.delete.bind(controller));
+  
+  registerPatchRoute<{ active: boolean }, { id: string }>(
+    fastify, '/{{modelLower}}/:id/status', Toggle{{modelName}}StatusConfig, controller.toggleStatus.bind(controller)
+  );
+}
