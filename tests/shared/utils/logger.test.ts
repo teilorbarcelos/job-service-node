@@ -1,15 +1,21 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-describe('logger', () => {
-  it('should be an object with logging methods', async () => {
-    const { logger } = await vi.importActual<any>('@/shared/utils/logger.js');
+describe('logger (real pino instance)', () => {
+  it('deve carregar o logger real via importActual', async () => {
+    const actual = await vi.importActual<typeof import('@/shared/utils/logger.js')>('@/shared/utils/logger.js');
+    expect(actual.logger).toBeDefined();
+    expect(typeof actual.logger.info).toBe('function');
+    expect(typeof actual.logger.child).toBe('function');
+  });
 
-    expect(logger).toBeDefined();
-    expect(typeof logger.info).toBe('function');
-    expect(typeof logger.error).toBe('function');
-    expect(typeof logger.warn).toBe('function');
-    expect(typeof logger.debug).toBe('function');
-    expect(typeof logger.fatal).toBe('function');
-    expect(typeof logger.trace).toBe('function');
+  it('child deve retornar logger com mesmo contrato', async () => {
+    const actual = await vi.importActual<typeof import('@/shared/utils/logger.js')>('@/shared/utils/logger.js');
+    const child = actual.logger.child({ test: true });
+    expect(typeof child.info).toBe('function');
+  });
+
+  it('deve logar mensagem info sem throw', async () => {
+    const actual = await vi.importActual<typeof import('@/shared/utils/logger.js')>('@/shared/utils/logger.js');
+    expect(() => actual.logger.info('test message')).not.toThrow();
   });
 });

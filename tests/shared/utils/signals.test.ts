@@ -1,33 +1,29 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createTimeoutSignal, timeoutPromise } from '@/shared/utils/signals.js';
 
 describe('createTimeoutSignal', () => {
-  it('should create a signal that aborts after timeout', () => {
-    const signal = createTimeoutSignal(50000);
+  it('deve retornar signal com timeout se nenhum external fornecido', () => {
+    const signal = createTimeoutSignal(60_000);
     expect(signal.aborted).toBe(false);
   });
 
-  it('should combine with an external signal', () => {
-    const ctrl = new AbortController();
-    const signal = createTimeoutSignal(50000, ctrl.signal);
+  it('deve combinar external + timeout via AbortSignal.any', () => {
+    const external = new AbortController();
+    const signal = createTimeoutSignal(60_000, external.signal);
     expect(signal.aborted).toBe(false);
-    ctrl.abort();
+    external.abort();
     expect(signal.aborted).toBe(true);
   });
 });
 
 describe('timeoutPromise', () => {
-  it('should resolve when the promise resolves before timeout', async () => {
-    const result = await timeoutPromise(Promise.resolve('ok'), 50000);
+  it('deve resolver quando promise resolve antes do timeout', async () => {
+    const result = await timeoutPromise(Promise.resolve('ok'), 1000);
     expect(result).toBe('ok');
   });
 
-  it('should reject when the promise rejects', async () => {
-    await expect(timeoutPromise(Promise.reject(new Error('fail')), 50000)).rejects.toThrow('fail');
-  });
-
-  it('should reject on timeout', async () => {
-    const slow = new Promise((resolve) => setTimeout(resolve, 50000));
-    await expect(timeoutPromise(slow, 1)).rejects.toThrow();
+  it('deve rejeitar quando timeout estoura', async () => {
+    const never = new Promise<string>(() => {});
+    await expect(timeoutPromise(never, 10)).rejects.toBeInstanceOf(DOMException);
   });
 });

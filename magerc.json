@@ -1,78 +1,18 @@
 {
   "scripts": [
-    {
-      "name": "🛠️ Install Dependencies",
-      "command": "npm install"
-    },
-    {
-      "name": "🧹 Lint & Fix Code",
-      "command": "bun run lint"
-    },
-    {
-      "name": "🚀 Start Development Server",
-      "command": "make dev"
-    },
-    {
-      "name": "🐳 Infrastructure: Start All (Postgres, Redis, RabbitMQ)",
-      "command": "make infra-up"
-    },
-    {
-      "name": "🐳 Infrastructure: Stop Services",
-      "command": "make infra-stop"
-    },
-    {
-      "name": "🐳 Infrastructure: Remove Containers",
-      "command": "make infra-down"
-    },
-    {
-      "name": "🧹 Infrastructure: Full Clean (Prune)",
-      "command": "make infra-clean"
-    },
-    {
-      "name": "📈 Metrics: Start Stack (Prometheus & Grafana)",
-      "command": "make metrics-up"
-    },
-    {
-      "name": "📈 Metrics: Stop Stack",
-      "command": "make metrics-stop"
-    },
-    {
-      "name": "📈 Metrics: Remove Stack Containers",
-      "command": "make metrics-down"
-    },
-    {
-      "name": "🧪 Run Unit Tests (Mocks)",
-      "command": "make test"
-    },
-    {
-      "name": "📊 Code Coverage Report",
-      "command": "make coverage"
-    },
-    {
-      "name": "🏗️ Generate New Module (make generate name=Entity)",
-      "command": "make generate"
-    },
-    {
-      "name": "📦 Storage Driver: Install AWS S3",
-      "command": "make storage-driver name=s3"
-    },
-    {
-      "name": "📦 Storage Driver: Install Google Cloud (GCS)",
-      "command": "make storage-driver name=gcs"
-    },
-    {
-      "name": "📦 Storage Driver: Install Azure Blob",
-      "command": "make storage-driver name=azure"
-    },
-    {
-      "name": "🗄️ Database: Sync & Seed (Prisma)",
-      "command": "bun run prisma:deploy"
-    }
+    { "name": "🛠️ Install Dependencies", "command": "npm install" },
+    { "name": "🧹 Lint & Fix Code", "command": "bun run lint" },
+    { "name": "🚀 Start Job Runner (dev)", "command": "make dev" },
+    { "name": "🐳 Infrastructure: Start All (Postgres, Redis, RabbitMQ)", "command": "make infra-up" },
+    { "name": "🐳 Infrastructure: Stop Services", "command": "make infra-stop" },
+    { "name": "🐳 Infrastructure: Remove Containers", "command": "make infra-down" },
+    { "name": "🧹 Infrastructure: Full Clean (Prune)", "command": "make infra-clean" },
+    { "name": "🧪 Run Unit Tests", "command": "make test" },
+    { "name": "📊 Code Coverage Report", "command": "make coverage" },
+    { "name": "🏗️ Generate New Job (make generate-job name=Cleanup)", "command": "make generate-job" },
+    { "name": "🗄️ Generate Prisma Client", "command": "bun run prisma:gen" }
   ],
   "replacements": [
-    {
-      "path": "package.json",
-      "pattern": "backend-node"
-    }
+    { "path": "package.json", "pattern": "job-service-node" }
   ]
 }

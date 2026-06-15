@@ -8,7 +8,6 @@ export default defineConfig({
     pool: 'forks',
     maxWorkers: 1,
     setupFiles: ['./tests/setup.ts'],
-    globalSetup: ['./tests/globalSetup.ts'],
     isolate: true,
     coverage: {
       provider: 'istanbul',
@@ -20,10 +19,8 @@ export default defineConfig({
         'tests/**',
         '**/*.d.ts',
         'prisma/**',
-        'generator/**',
         'src/shared/config/**',
         'src/server.ts',
-        'src/infra/bcrypt/**',
         '**/index.ts',
         'prisma.config.ts'
       ],

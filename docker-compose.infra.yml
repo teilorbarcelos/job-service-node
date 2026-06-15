@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:15-alpine
-    container_name: backend_node_db_infra
+    container_name: job_service_node_db_infra
     restart: "no"
     environment:
       POSTGRES_USER: postgres
@@ -19,7 +19,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: backend_node_redis_infra
+    container_name: job_service_node_redis_infra
     restart: "no"
     ports:
       - "6379:6379"
@@ -28,7 +28,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: backend_node_rabbitmq_infra
+    container_name: job_service_node_rabbitmq_infra
     restart: "no"
     ports:
       - "5672:5672"
