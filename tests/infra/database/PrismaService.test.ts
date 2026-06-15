@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Pool } from 'pg';
 import { PrismaService } from '@/infra/database/PrismaService.js';
+import { CONFIG } from '@/shared/config/env.js';
 
 vi.mock('@prisma/client', () => {
   const PrismaClientMock = vi.fn().mockImplementation(function (this: any) {
@@ -64,6 +65,20 @@ describe('PrismaService', () => {
       const calls = (Pool as unknown as { mock: { calls: Array<Array<{ connectionString: string }>> } }).mock.calls;
       const lastCall = calls[calls.length - 1];
       expect(lastCall[0].connectionString).toBe('postgresql://custom:secret@custom-host:5433/custom-db');
+    } finally {
+      if (original === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = original;
+    }
+  });
+
+  it('deve usar CONFIG.DATABASE.URL quando DATABASE_URL não está setada', () => {
+    const original = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+    try {
+      PrismaService.getClient();
+      const calls = (Pool as unknown as { mock: { calls: Array<Array<{ connectionString: string }>> } }).mock.calls;
+      const lastCall = calls[calls.length - 1];
+      expect(lastCall[0].connectionString).toBe(CONFIG.DATABASE.URL);
     } finally {
       if (original === undefined) delete process.env.DATABASE_URL;
       else process.env.DATABASE_URL = original;
