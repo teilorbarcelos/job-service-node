@@ -10,6 +10,7 @@
     { "name": "🧪 Run Unit Tests", "command": "make test" },
     { "name": "📊 Code Coverage Report", "command": "make coverage" },
     { "name": "🏗️ Generate New Job (make generate-job name=Cleanup)", "command": "make generate-job" },
+    { "name": "🔧 Bun: Generate Prisma Client", "command": "bun run prisma:gen" },
     { "name": "🗄️ Generate Prisma Client", "command": "bun run prisma:gen" }
   ],
   "replacements": [

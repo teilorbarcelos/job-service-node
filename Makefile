@@ -22,7 +22,8 @@ coverage:
 
 # Exemplo: make generate-job name=CleanupOldRecords
 generate-job:
-	@echo "✏️  Crie manualmente src/jobs/$(name).ts estendendo BaseJob e registre em src/jobs/register-jobs.ts"
+	@echo "🏗️  Gerando job $(name)..."
+	@bun run generate:job $(name)
 
 infra-up:
 	@echo "🐳 Subindo infraestrutura local (Docker)..."

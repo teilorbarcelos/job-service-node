@@ -84,63 +84,67 @@ Se `MESSAGING_ENABLED=true` no `.env`:
 
 ## ➕ Como adicionar um novo job
 
-É o objetivo principal do boilerplate: **1 arquivo + 1 linha de registro**.
+O boilerplate vem com um **generator** que cria o job + teste + atualiza o
+registro em 1 comando. Você só precisa implementar a lógica do `handle()`.
 
-### 1. Criar o job
+### 1. Gerar o esqueleto
+
+```bash
+# Forma curta
+make job name=CleanupOldRecords
+
+# Ou direto
+bun run generate:job CleanupOldRecords
+
+# Com schedule e description customizados
+bun run generate:job CleanupOldRecords "0 3 * * *" "Remove registros com mais de 90 dias"
+
+# Aceita qualquer formato de nome (kebab, snake, pascal)
+bun run generate:job send-welcome-email    # vira SendWelcomeEmailJob
+bun run generate:job sync_inventory       # vira SyncInventoryJob
+```
+
+O generator cria:
+- `src/jobs/CleanupOldRecordsJob.ts` — classe estendendo `BaseJob`
+- `tests/jobs/CleanupOldRecordsJob.test.ts` — 5 testes cobrindo 100% do esqueleto
+- Atualiza `src/jobs/register-jobs.ts` adicionando o import e a instância na lista
+
+### 2. Implementar a lógica
 
 ```ts
-// src/jobs/CleanupOldRecords.ts
+// src/jobs/CleanupOldRecordsJob.ts (gerado)
 import { BaseJob, type JobContext } from '../core/BaseJob.js';
 
-export class CleanupOldRecords extends BaseJob {
+export class CleanupOldRecordsJob extends BaseJob {
   public readonly name = 'cleanup-old-records';
-  public schedule = '0 3 * * *';                  // todo dia às 3h
+  public readonly schedule = '0 3 * * *';
   public readonly description = 'Remove registros com mais de 90 dias';
 
   protected async handle(context: JobContext): Promise<void> {
-    // sua lógica aqui
-    // context.logger.info('Iniciando limpeza...');
-    // await PrismaService.getClient().$executeRaw`DELETE FROM ...`;
+    context.logger.info({ event: 'job.cleanup-old-records.start' }, 'Iniciando limpeza');
+
+    // sua lógica aqui — respeite context.signal para cancelamento via timeout
+    // await PrismaService.getClient().$executeRaw`DELETE FROM logs WHERE created_at < NOW() - INTERVAL '90 days'`;
+
+    context.logger.info({ event: 'job.cleanup-old-records.done' }, 'Limpeza concluída');
   }
 }
 ```
 
-### 2. Registrar
+### 3. Validar
 
-```ts
-// src/jobs/register-jobs.ts
-import { Scheduler } from '../core/Scheduler.js';
-import { HealthCheckJob } from './HealthCheckJob.js';
-import { DefaultHealthChecker } from '../infra/health/DefaultHealthChecker.js';
-import { CleanupOldRecords } from './CleanupOldRecords.js';
-
-export function registerJobs(): Scheduler {
-  const jobs = [
-    new HealthCheckJob(new DefaultHealthChecker()),
-    new CleanupOldRecords(),         // ← adicionado
-  ];
-  return new Scheduler(jobs, { executionTimeoutMs: 300_000 });
-}
-```
-
-### 3. Escrever o teste
-
-```ts
-// tests/jobs/CleanupOldRecords.test.ts
-import { describe, it, expect, vi } from 'vitest';
-import { CleanupOldRecords } from '@/jobs/CleanupOldRecords.js';
-
-describe('CleanupOldRecords', () => {
-  it('deve executar e logar progresso', async () => {
-    const job = new CleanupOldRecords();
-    const result = await job.run(new AbortController().signal);
-    expect(result.status).toBe('success');
-  });
-});
+```bash
+bun run test:coverage   # 100% statements/branches/functions/lines
+bun run lint            # ESLint
 ```
 
 Pronto. O scheduler cuida do resto: valida o cron, agenda, previne sobreposição,
 aplica timeout via `AbortSignal`, loga início/fim/erro.
+
+> **Quer escrever manualmente em vez de usar o generator?** Sem problema. Crie
+> `src/jobs/MeuJob.ts` estendendo `BaseJob` e adicione manualmente em
+> `src/jobs/register-jobs.ts`. Mas o generator garante 100% de cobertura do esqueleto
+> de graça.
 
 ---
 
@@ -316,8 +320,8 @@ Veja [`TODO.md`](./TODO.md) para o roadmap completo. Em resumo:
 - [x] Acesso a PostgreSQL / Redis / RabbitMQ
 - [x] 100% cobertura de testes
 - [x] SonarQube + Husky + CI
+- [x] Generator de jobs (`make job name=Cleanup`)
 - [ ] Métricas Prometheus para jobs (execuções, duração, erros)
 - [ ] Distributed lock (Redis) para execuções multi-replica
 - [ ] Retry com backoff na `BaseJob`
 - [ ] CLI para rodar jobs manualmente (`bun run job:run <name>`)
-- [ ] Generator de jobs (`make job name=Cleanup`)
