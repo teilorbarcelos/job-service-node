@@ -1,40 +1,19 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: backend_node_db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespw
-      POSTGRES_DB: backend_node
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d backend_node"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: backend_node_app
-    ports:
-      - "8888:8888"
+    container_name: job_service_node_app
     environment:
-      - PORT=8888
-      - HOST=0.0.0.0
-      - ENVIRONMENT=local
-      - DEBUG=true
-      - DATABASE_URL=postgresql://postgres:postgrespw@db:5432/backend_node?schema=public
-      - JWT_SECRET=local-development-secret-key
-    depends_on:
-      db:
-        condition: service_healthy
-
-volumes:
-  postgres_data:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - DATABASE_URL=postgresql://postgres:postgrespw@host.docker.internal:5432/backend_node?schema=public
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - MESSAGING_ENABLED=true
+      - RABBIT_URL=amqp://guest:guest@host.docker.internal:5672
+    restart: "no"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

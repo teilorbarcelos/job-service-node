@@ -2,239 +2,132 @@ import fs from 'fs/promises';
 import Handlebars from 'handlebars';
 import path from 'path';
 
-const PRISMA_SCHEMA_PATH = './prisma/main/schema.prisma';
 const TEMPLATES_DIR = './generator/templates';
-const OUTPUT_DIR = './src/modules';
-const SKIP_MODELS = ['Auth', 'RoleFeature'];
-const SYSTEM_FIELDS = ['id', 'active', 'is_deleted', 'deleted_at', 'created_at', 'updated_at'];
+const JOBS_DIR = './src/jobs';
+const TESTS_DIR = './tests/jobs';
+const REGISTER_PATH = './src/jobs/register-jobs.ts';
 
-interface ModelField {
+interface JobTemplateVars {
+  Name: string;
   name: string;
-  jsonType: string;
-  tsType: string;
-  typeBoxType: string;
-  format?: string;
-  isOptional: boolean;
-  isId: boolean;
-  isRelation: boolean;
-  isReadOnly: boolean;
-  isRequired: boolean;
-  isSystem: boolean;
-  isFilterable: boolean;
-  isSearchable: boolean;
+  schedule: string;
+  description: string;
 }
 
-interface TemplateEntry {
-  name: string;
-  render: HandlebarsTemplateDelegate<{ 
-    modelName: string; 
-    modelLower: string;
-    fields: ModelField[];
-    createFields: ModelField[];
-    updateFields: ModelField[];
-    filterableFields: ModelField[];
-    searchableFields: ModelField[];
-    requiredCreateFields: string[];
-  }>;
+function toPascalCase(input: string): string {
+  return input
+    .split(/[-_\s]+/)
+    .flatMap(part =>
+      part
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    )
+    .join('');
 }
 
-// Register Handlebars helpers
-Handlebars.registerHelper('eq', (a, b) => a === b);
-
-async function loadTemplates(): Promise<TemplateEntry[]> {
-  const files = await fs.readdir(TEMPLATES_DIR);
-  const hbrFiles = files.filter(f => f.endsWith('.hbr'));
-
-  return Promise.all(
-    hbrFiles.map(async file => {
-      const content = await fs.readFile(path.join(TEMPLATES_DIR, file), 'utf-8');
-      return {
-        name: file.replace('.hbr', ''),
-        render: Handlebars.compile(content)
-      };
-    })
-  );
+function pascalToKebab(input: string): string {
+  return input.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
-function extractModels(schema: string): string[] {
-  return [...schema.matchAll(/model (\w+) {/g)].map(m => m[1]);
+async function loadTemplate(filename: string): Promise<HandlebarsTemplateDelegate<JobTemplateVars>> {
+  const content = await fs.readFile(path.join(TEMPLATES_DIR, filename), 'utf-8');
+  return Handlebars.compile<JobTemplateVars>(content);
 }
 
-function extractModelFields(schema: string, modelName: string, allModels: string[]): ModelField[] {
-  const modelRegex = new RegExp(`model ${modelName} {([\\s\\S]*?)}`, 'g');
-  const match = modelRegex.exec(schema);
-  if (!match) return [];
-
-  const lines = match[1].split('\n');
-  const fields: ModelField[] = [];
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('@@') || trimmed.startsWith('//')) continue;
-
-    const parts = trimmed.split(/\s+/);
-    if (parts.length < 2) continue;
-
-    const name = parts[0];
-    let type = parts[1];
-    const attributes = parts.slice(2).join(' ');
-
-    const isOptional = type.endsWith('?');
-    const cleanType = type.replace('?', '').replace('[]', '');
-    const isRelation = allModels.includes(cleanType);
-    const isId = attributes.includes('@id');
-    const isReadOnly = isId || attributes.includes('@default(now())') || attributes.includes('@updatedAt');
-    const isSystem = SYSTEM_FIELDS.includes(name);
-    
-    let jsonType = 'string';
-    let tsType = 'string';
-    let format: string | undefined = undefined;
-    let typeBoxCore = 'Type.String()';
-
-    switch (cleanType) {
-      case 'Int':
-        jsonType = 'integer';
-        tsType = 'number';
-        typeBoxCore = 'Type.Integer()';
-        break;
-      case 'Float':
-      case 'Decimal':
-        jsonType = 'number';
-        tsType = 'number';
-        typeBoxCore = 'Type.Number()';
-        break;
-      case 'Boolean':
-        jsonType = 'boolean';
-        tsType = 'boolean';
-        typeBoxCore = 'Type.Boolean()';
-        break;
-      case 'DateTime':
-        jsonType = 'string';
-        tsType = 'string';
-        format = 'date-time';
-        typeBoxCore = "Type.String({ format: 'date-time' })";
-        break;
-    }
-
-    if (isId && cleanType === 'String') {
-      format = 'uuid';
-      typeBoxCore = "Type.String({ format: 'uuid' })";
-    }
-
-    let typeBoxType = typeBoxCore;
-    if (isOptional) {
-      typeBoxType = `Type.Optional(${typeBoxCore})`;
-    }
-
-    if (!isRelation) {
-      fields.push({
-        name,
-        jsonType,
-        tsType,
-        typeBoxType,
-        format,
-        isOptional,
-        isId,
-        isRelation,
-        isReadOnly,
-        isSystem,
-        isRequired: !isOptional && !isReadOnly && !isSystem && !attributes.includes('@default'),
-        isFilterable: true,
-        isSearchable: tsType === 'string' && !isId && !isSystem
-      });
-    }
+async function fileExists(target: string): Promise<boolean> {
+  try {
+    await fs.access(target);
+    return true;
+  } catch {
+    return false;
   }
-
-  return fields;
 }
 
-async function generate(): Promise<void> {
-  console.log('Module Generator — Starting...\n');
+async function updateRegisterJobs(name: string): Promise<void> {
+  const content = await fs.readFile(REGISTER_PATH, 'utf-8');
 
-  const targetEntity = process.argv[2];
-  const schemaContent = await fs.readFile(PRISMA_SCHEMA_PATH, 'utf-8');
-  const allModels = extractModels(schemaContent);
-  const templates = await loadTemplates();
+  const importLine = `import { ${name}Job } from './${name}Job.js';`;
+  const instanceLine = `    new ${name}Job(),`;
 
-  const modelsToGenerate = targetEntity
-    ? allModels.filter(m => m === targetEntity)
-    : allModels.filter(m => !SKIP_MODELS.includes(m));
-
-  if (targetEntity && modelsToGenerate.length === 0) {
-    console.error(`Model "${targetEntity}" not found in schema.`);
-    process.exit(1);
+  if (content.includes(importLine)) {
+    console.log(`  ${name}Job already registered (skipped)`);
+    return;
   }
-
-  for (const modelName of modelsToGenerate) {
-    const modelLower = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-    const moduleDir = path.join(OUTPUT_DIR, modelName);
-    const fields = extractModelFields(schemaContent, modelName, allModels);
-
-    const createFields = fields.filter(f => !f.isReadOnly && !f.isSystem);
-    const updateFields = fields.filter(f => !f.isId && !f.isReadOnly && !f.isSystem);
-    const filterableFields = fields.filter(f => f.isFilterable && !['created_at', 'updated_at'].includes(f.name));
-    const searchableFields = fields.filter(f => f.isSearchable);
-    const requiredCreateFields = createFields.filter(f => f.isRequired).map(f => f.name);
-
-    try {
-      await fs.access(moduleDir);
-      if (!targetEntity) {
-        console.log(`Skipping ${modelName} (directory already exists)`);
-        continue;
-      }
-    } catch {}
-
-    await fs.mkdir(moduleDir, { recursive: true });
-
-    for (const template of templates) {
-      const fileName = `${modelName}.${template.name}.ts`;
-      let filePath = path.join(moduleDir, fileName);
-
-      // Special case for tests: place in tests/modules/
-      if (template.name === 'test') {
-        const testsDir = './tests/modules';
-        await fs.mkdir(testsDir, { recursive: true });
-        filePath = path.join(testsDir, fileName);
-      }
-
-      const content = template.render({ 
-        modelName, 
-        modelLower, 
-        fields,
-        createFields,
-        updateFields,
-        filterableFields,
-        searchableFields,
-        requiredCreateFields
-      });
-      await fs.writeFile(filePath, content);
-      console.log(`  ${fileName}`);
-    }
-
-    await registerNewModule(modelName);
-  }
-
-  console.log('\nGeneration Complete!');
-}
-
-async function registerNewModule(modelName: string): Promise<void> {
-  const routesPath = './src/modules/register-modules.ts';
-  const content = await fs.readFile(routesPath, 'utf-8');
-
-  const modelLower = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-  const importName = `${modelLower}Routes`;
-  const importLine = `import { ${importName} } from './${modelName}/${modelName}.routes.js';`;
-  const registrationLine = `  await app.register(${importName}, { prefix: '/v1' });`;
-
-  if (content.includes(importLine)) return;
 
   const newContent = content
     .replace('// [GENERATOR_IMPORTS]', `${importLine}\n// [GENERATOR_IMPORTS]`)
-    .replace('  // [GENERATOR_REGISTRATIONS]', `${registrationLine}\n  // [GENERATOR_REGISTRATIONS]`);
+    .replace('// [GENERATOR_JOBS]', `${instanceLine}\n    // [GENERATOR_JOBS]`);
 
-  await fs.writeFile(routesPath, newContent);
-  console.log(`  Registered ${modelName} routes`);
+  await fs.writeFile(REGISTER_PATH, newContent);
+  console.log(`  Registered ${name}Job in register-jobs.ts`);
 }
 
-generate().catch(console.error);
+async function generate(): Promise<void> {
+  console.log('Job Generator — Starting...\n');
 
+  const rawName = process.argv[2];
+  const schedule = process.argv[3] || '0 3 * * *';
+  const description = process.argv[4] || 'TBD';
+
+  if (!rawName) {
+    console.error('Usage: bun run generate:job <Name> [schedule] [description]');
+    console.error('');
+    console.error('Examples:');
+    console.error('  bun run generate:job CleanupOldRecords');
+    console.error('  bun run generate:job CleanupOldRecords "0 3 * * *" "Remove records older than 90 days"');
+    console.error('  bun run generate:job SendWelcomeEmail "0 9 * * 1" "Send weekly digest"');
+    console.error('');
+    console.error('Name is case-insensitive and accepts kebab/snake/pascal. Job suffix is added if missing.');
+    process.exit(1);
+  }
+
+  const pascal = toPascalCase(rawName);
+  const Name = pascal.endsWith('Job') ? pascal.slice(0, -3) : pascal;
+  const name = pascalToKebab(Name);
+
+  const vars: JobTemplateVars = { Name, name, schedule, description };
+
+  console.log('Generating job:');
+  console.log(`  File:        ${JOBS_DIR}/${Name}Job.ts`);
+  console.log(`  Test:        ${TESTS_DIR}/${Name}Job.test.ts`);
+  console.log(`  Class:       ${Name}Job`);
+  console.log(`  name:        ${name}`);
+  console.log(`  schedule:    ${schedule}`);
+  console.log(`  description: ${description}`);
+  console.log();
+
+  const jobFile = path.join(JOBS_DIR, `${Name}Job.ts`);
+  const testFile = path.join(TESTS_DIR, `${Name}Job.test.ts`);
+
+  if (await fileExists(jobFile)) {
+    console.error(`❌ File already exists: ${jobFile}`);
+    console.error('   Delete it first or pick a different name.');
+    process.exit(1);
+  }
+
+  await fs.mkdir(JOBS_DIR, { recursive: true });
+  await fs.mkdir(TESTS_DIR, { recursive: true });
+
+  const jobTpl = await loadTemplate('job.ts.tpl');
+  const testTpl = await loadTemplate('job.test.ts.tpl');
+
+  await fs.writeFile(jobFile, jobTpl(vars));
+  console.log(`  ✓ ${jobFile}`);
+
+  await fs.writeFile(testFile, testTpl(vars));
+  console.log(`  ✓ ${testFile}`);
+
+  await updateRegisterJobs(Name);
+
+  console.log('\n✅ Generation complete!');
+  console.log('\nNext steps:');
+  console.log(`  1. Implement handle() in src/jobs/${Name}Job.ts`);
+  console.log(`  2. Run: bun run test:coverage`);
+  console.log(`  3. Run: bun run dev (to see it scheduled)`);
+}
+
+generate().catch(err => {
+  console.error('❌ Generation failed:', err);
+  process.exit(1);
+});

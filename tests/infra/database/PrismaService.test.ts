@@ -1,34 +1,87 @@
-import { PrismaService, db, auditDb } from '../../../src/infra/database/PrismaService.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Pool } from 'pg';
+import { PrismaService } from '@/infra/database/PrismaService.js';
+import { CONFIG } from '@/shared/config/env.js';
+
+vi.mock('@prisma/client', () => {
+  const PrismaClientMock = vi.fn().mockImplementation(function (this: any) {
+    this.$connect = vi.fn().mockResolvedValue(undefined);
+    this.$disconnect = vi.fn().mockResolvedValue(undefined);
+    this.$queryRaw = vi.fn();
+  });
+  return { PrismaClient: PrismaClientMock };
+});
+
+vi.mock('@prisma/adapter-pg', () => {
+  const PrismaPgMock = vi.fn().mockImplementation(function (this: any) {});
+  return { PrismaPg: PrismaPgMock };
+});
+
+vi.mock('pg', () => {
+  const PoolMock = vi.fn().mockImplementation(function (this: any) {
+    this.end = vi.fn().mockResolvedValue(undefined);
+  });
+  return { Pool: PoolMock };
+});
 
 describe('PrismaService', () => {
-  it('should return the same main client instance on multiple calls', () => {
-    const instance1 = PrismaService.getMainClient();
-    const instance2 = PrismaService.getMainClient();
-    
-    expect(instance1).toBe(instance2);
-    expect(instance1).toBe(db);
+  beforeEach(() => {
+    PrismaService.reset();
   });
 
-  it('should return the same audit client instance on multiple calls', () => {
-    const instance1 = PrismaService.getAuditClient();
-    const instance2 = PrismaService.getAuditClient();
-    
-    expect(instance1).toBe(instance2);
-    expect(instance1).toBe(auditDb);
+  afterEach(async () => {
+    await PrismaService.close();
   });
 
-  it('should use fallback URL for audit client if DATABASE_URL_AUDIT is not set', () => {
-    const originalUrl = process.env.DATABASE_URL_AUDIT;
-    
+  it('deve retornar uma instância singleton de PrismaClient', () => {
+    const a = PrismaService.getClient();
+    const b = PrismaService.getClient();
+    expect(a).toBe(b);
+  });
+
+  it('deve inicializar pool na primeira chamada', () => {
+    expect(PrismaService.pool).toBeNull();
+    PrismaService.getClient();
+    expect(PrismaService.pool).not.toBeNull();
+  });
+
+  it('deve fechar pool e resetar instância em close', async () => {
+    PrismaService.getClient();
+    expect(PrismaService.pool).not.toBeNull();
+    await PrismaService.close();
+    expect(PrismaService.pool).toBeNull();
+  });
+
+  it('close deve tolerar pool nulo', async () => {
+    await PrismaService.close();
+    expect(PrismaService.pool).toBeNull();
+  });
+
+  it('deve usar DATABASE_URL do process.env quando setada', () => {
+    const original = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = 'postgresql://custom:secret@custom-host:5433/custom-db';
     try {
-      delete process.env.DATABASE_URL_AUDIT;
-      // @ts-expect-error - accessing private field for coverage test
-      PrismaService.auditInstance = null;
-      
-      const instance = PrismaService.getAuditClient();
-      expect(instance).toBeDefined();
+      PrismaService.getClient();
+      const calls = (Pool as unknown as { mock: { calls: Array<Array<{ connectionString: string }>> } }).mock.calls;
+      const lastCall = calls[calls.length - 1];
+      expect(lastCall[0].connectionString).toBe('postgresql://custom:secret@custom-host:5433/custom-db');
     } finally {
-      process.env.DATABASE_URL_AUDIT = originalUrl;
+      if (original === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = original;
+    }
+  });
+
+  it('deve usar CONFIG.DATABASE.URL quando DATABASE_URL não está setada', () => {
+    const original = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+    try {
+      PrismaService.getClient();
+      const calls = (Pool as unknown as { mock: { calls: Array<Array<{ connectionString: string }>> } }).mock.calls;
+      const lastCall = calls[calls.length - 1];
+      expect(lastCall[0].connectionString).toBe(CONFIG.DATABASE.URL);
+    } finally {
+      if (original === undefined) delete process.env.DATABASE_URL;
+      else process.env.DATABASE_URL = original;
     }
   });
 });

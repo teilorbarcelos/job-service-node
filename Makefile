@@ -1,6 +1,5 @@
-.PHONY: install dev test coverage generate storage-driver infra-up infra-stop infra-down infra-clean metrics-up metrics-stop metrics-down
+.PHONY: install dev test coverage generate-job infra-up infra-stop infra-down infra-clean
 
-# Variáveis
 ENVIRONMENT ?= development
 
 install:
@@ -8,11 +7,11 @@ install:
 	@npm install
 
 dev:
-	@echo "🚀 Iniciando servidor de desenvolvimento (Bun)..."
+	@echo "🚀 Iniciando job runner (Bun, hot-reload)..."
 	@bun run dev
 
 test:
-	@echo "🧪 Executando testes unitários e de integração (Mocks)..."
+	@echo "🧪 Executando testes unitários..."
 	@bun run test
 
 coverage:
@@ -21,16 +20,11 @@ coverage:
 	@echo "\n--- Resumo de Cobertura ---"
 	@echo "Verifique os detalhes acima. Se houver linhas não cobertas, elas estarão listadas na tabela."
 
-# Geradores
-# Exemplo: make generate name=Product
-generate:
-	@bun run generator/index.ts $(name)
+# Exemplo: make generate-job name=CleanupOldRecords
+generate-job:
+	@echo "🏗️  Gerando job $(name)..."
+	@bun run generate:job $(name)
 
-# Exemplo: make storage-driver name=s3
-storage-driver:
-	@bun run generator/install-storage.ts $(name)
-
-# Infraestrutura
 infra-up:
 	@echo "🐳 Subindo infraestrutura local (Docker)..."
 	@bun run infra:up
@@ -46,16 +40,3 @@ infra-down:
 infra-clean:
 	@echo "🧹 Limpeza completa da infraestrutura (Volumes & Imagens)..."
 	@bun run infra:clean
-
-# Métricas (Prometheus & Grafana)
-metrics-up:
-	@echo "📈 Subindo stack de métricas (Prometheus & Grafana)..."
-	@bun run metrics:up
-
-metrics-stop:
-	@echo "🛑 Parando stack de métricas..."
-	@bun run metrics:stop
-
-metrics-down:
-	@echo "🗑️ Removendo stack de métricas..."
-	@bun run metrics:down

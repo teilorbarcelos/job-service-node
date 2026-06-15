@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Generate Prisma Clients
+      - name: Generate Prisma Client
         run: npm run prisma:gen
 
       - name: TypeScript typecheck
@@ -34,43 +34,5 @@ jobs:
         run: bun run test:coverage
         env:
           NODE_ENV: test
-          JWT_SECRET: test-secret
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci
           MESSAGING_ENABLED: false
-          RATE_LIMIT_ENABLED: false
-          STORAGE_DRIVER: local
-          STORAGE_URL: http://localhost:8888
-
-  integration:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Generate Prisma Clients
-        run: npm run prisma:gen
-
-      - name: TypeScript typecheck
-        run: npx tsc --noEmit
-
-      - name: Lint check
-        run: bun run lint
-
-      - name: Run Integration Tests (Testcontainers)
-        run: bun run test:coverage -- --testTimeout=120000
-        env:
-          NODE_ENV: test
-          USE_REAL_DB: "true"
-          JWT_SECRET: test-secret
-          MESSAGING_ENABLED: false
-          RATE_LIMIT_ENABLED: false
-          STORAGE_DRIVER: local
-          STORAGE_URL: http://localhost:8888
